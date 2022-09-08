@@ -1,4 +1,4 @@
-import os, requests, re
+import os, re, client
 
 from dotenv import load_dotenv
 
@@ -7,52 +7,19 @@ if os.path.isfile('.env.local'):
     dotenv_file = '.env.local'
 load_dotenv(dotenv_file)
 
-CLIENT_ID = os.getenv('CLIENT_ID')
-CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-REDIRECT_URI = os.getenv('REDIRECT_URI')
-BASE_URL = 'https://hh.ru/oauth'
-
-if (
-    CLIENT_ID == None or
-    CLIENT_SECRET == None or
-    REDIRECT_URI == None
-    ):
-    raise SystemExit('You forgot to paste the client data (such as client_id, client_secret, redirect_uri) into the .env file.')
-
 def __main__():
     message = ("Перейди по ссылке ниже, чтобы сгенирировать code для получения токена доступа:\n"
-               f"{get_login_url()}\n"
+               f"{client.get_login_url()}\n"
                "Полученный code из адресной строки вставь сюда: ")
     code = input(message)
-    token_json = get_token_by_code(code)
+    token_json = client.get_access_token_by_code(code).json()
     save_token(token_json)
     message = ("Токен был сохранен в ваш .env файл и в дальнейшем будет использоваться для выполнения запросов.\n"
                f"Access token: {token_json['access_token']}\n"
                f"Refresh token: {token_json['refresh_token']}")
     print(message)
 
-
-def get_login_url():
-    return f"{BASE_URL}/authorize?response_type=code&client_id={CLIENT_ID}&state=state&redirect_uri={REDIRECT_URI}"
-
-def get_token_by_code(code):
-    try:
-        response = requests.post(
-            f"{BASE_URL}/token",
-            params={
-                'client_id': CLIENT_ID,
-                'client_secret': CLIENT_SECRET,
-                'code': code,
-                'grant_type': 'authorization_code',
-                'redirect_uri': REDIRECT_URI
-            },
-        )
-    except requests.exceptions.RequestException as err:
-        raise SystemExit(err)
-
-    return response.json()
-
-def save_token(token_json):
+def save_token(token_json: str) -> None:
     # Rewrite the .env file with the new access token.
     if 'access_token' in token_json:
         access_token = token_json['access_token']
@@ -66,16 +33,16 @@ def save_token(token_json):
             if 'ACCESS_TOKEN' in old_dotenv_content:
                 new_dotenv_content = re.sub(r'ACCESS_TOKEN=.+', 'ACCESS_TOKEN=' + access_token, new_dotenv_content)
             else:
-                new_dotenv_content = new_dotenv_content + f"ACCESS_TOKEN={access_token}\n"
+                new_dotenv_content = new_dotenv_content + f"\nACCESS_TOKEN={access_token}"
             
             if 'REFRESH_TOKEN' in old_dotenv_content:
                 new_dotenv_content = re.sub(r'REFRESH_TOKEN=.+', 'REFRESH_TOKEN=' + refresh_token, new_dotenv_content)
             else:
-                new_dotenv_content = new_dotenv_content + f"REFRESH_TOKEN={refresh_token}\n"
+                new_dotenv_content = new_dotenv_content + f"\nREFRESH_TOKEN={refresh_token}"
             
             file.write(new_dotenv_content)
     else:
-        raise SystemExit('The access token has not been updated! Error: ' + token_json['error_description'])
+        raise SystemExit('Токен не был сохранен! Ошибка: ' + token_json['error_description'])
 
 if __name__ == "__main__":
    __main__()
