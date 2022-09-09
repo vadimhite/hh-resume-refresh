@@ -1,7 +1,9 @@
-FROM python:3-alpine
+FROM ubuntu
 
-WORKDIR /app
+WORKDIR /usr/src/app
 
-RUN pip install --no-cache-dir requests python-dotenv
+COPY requirements.txt .
 
-COPY . .
+RUN apt-get update && apt-get upgrade && apt-get install -y pip && pip install --no-cache-dir -r requirements.txt
+
+COPY /app .
